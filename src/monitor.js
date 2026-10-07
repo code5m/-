@@ -1,6 +1,7 @@
 import fs from "node:fs";
+import path from "node:path";
 import crypto from "node:crypto";
-import { classifyPost } from "./classify.js";
+import { classifyPost, classifyProjectLead } from "./classify.js";
 import { formatChinaTime, inferResetTime } from "./time.js";
 import { sendWeChat } from "./notifiers.js";
 
@@ -9,6 +10,7 @@ const STATE_PATH = process.env.STATE_PATH || "state/notified.json";
 const BOOTSTRAP_NOTIFY_LATEST = (process.env.BOOTSTRAP_NOTIFY_LATEST || "true").toLowerCase() === "true";
 const BOOTSTRAP_MAX_AGE_HOURS = Number(process.env.BOOTSTRAP_MAX_AGE_HOURS || 24);
 const ALERT_ON_HINTS = (process.env.ALERT_ON_HINTS || "false").toLowerCase() === "true";
+const DISCOVER_PROJECTS = (process.env.DISCOVER_PROJECTS || "true").toLowerCase() === "true";
 
 function loadState() {
   try {
@@ -19,7 +21,7 @@ function loadState() {
 }
 
 function saveState(state) {
-  fs.mkdirSync(new URL(".", "file://" + process.cwd() + "/" + STATE_PATH).pathname, { recursive: true });
+  fs.mkdirSync(path.dirname(STATE_PATH), { recursive: true });
   fs.writeFileSync(STATE_PATH, JSON.stringify(state, null, 2) + "\n");
 }
 
@@ -52,7 +54,9 @@ async function fetchPosts() {
     : [];
 
   if (!candidates.length) throw new Error("Feed returned no recognizable posts.");
-  return candidates.map(normalizePost).filter(Boolean)
+  return candidates
+    .map(normalizePost)
+    .filter(Boolean)
     .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
 }
 
@@ -63,7 +67,7 @@ function titleFor(kind) {
   return "👀 Tibo Reset：新线索";
 }
 
-function buildMessage(post, classification) {
+function buildResetMessage(post, classification) {
   const inferred = inferResetTime(post.text, post.createdAt);
   const resetTime = classification.kind === "completed"
     ? "已执行（以该帖时间作为确认时间）"
@@ -79,21 +83,54 @@ function buildMessage(post, classification) {
     `类型：${classification.kind}`,
     "",
     `原帖：${post.url}`,
-    classification.kind === "completed" ? "现在可以安排烧额度了。" : "请按这个时间安排额度使用。"
+    classification.kind === "completed"
+      ? "现在可以安排烧额度了。"
+      : "请按这个时间安排额度使用。"
   ].join("\n");
 }
 
-async function deliver(post, classification, state) {
-  if (state.notified[post.versionKey]) return false;
+async function deliverReset(post, classification, state) {
+  const key = `reset:${post.versionKey}`;
+  if (state.notified[key]) return false;
+
   await sendWeChat({
     title: titleFor(classification.kind),
-    body: buildMessage(post, classification),
+    body: buildResetMessage(post, classification),
     url: post.url
   });
-  state.notified[post.versionKey] = {
+
+  state.notified[key] = {
     postId: post.id,
     notifiedAt: new Date().toISOString(),
     kind: classification.kind
+  };
+  return true;
+}
+
+async function deliverProject(post, lead, state) {
+  const key = `project:${post.versionKey}`;
+  if (state.notified[key]) return false;
+
+  const body = [
+    "Tibo 发了一条值得看的项目/工具线索：",
+    post.text,
+    "",
+    `发现时间（北京时间）：${formatChinaTime(post.createdAt)}`,
+    `信号：${lead.reason.join(", ")}`,
+    `原帖：${post.url}`,
+    "建议先看原帖和项目主页，再决定是否拿 Codex/Work 额度去试。"
+  ].join("\n");
+
+  await sendWeChat({
+    title: "📌 Tibo：值得看的项目线索",
+    body,
+    url: post.url
+  });
+
+  state.notified[key] = {
+    postId: post.id,
+    notifiedAt: new Date().toISOString(),
+    kind: "project-lead"
   };
   return true;
 }
@@ -103,7 +140,9 @@ async function main() {
   const posts = await fetchPosts();
 
   if (!state.initialized) {
-    for (const post of posts) state.seen[post.versionKey] = new Date().toISOString();
+    for (const post of posts) {
+      state.seen[post.versionKey] = new Date().toISOString();
+    }
 
     if (BOOTSTRAP_NOTIFY_LATEST) {
       const now = Date.now();
@@ -113,7 +152,9 @@ async function main() {
         .filter(({ post }) => now - new Date(post.createdAt).getTime() <= BOOTSTRAP_MAX_AGE_HOURS * 3600000)
         .at(-1);
 
-      if (actionable) await deliver(actionable.post, actionable.c, state);
+      if (actionable) {
+        await deliverReset(actionable.post, actionable.c, state);
+      }
     }
 
     state.initialized = true;
@@ -124,18 +165,28 @@ async function main() {
   }
 
   let notifiedCount = 0;
+
   for (const post of posts) {
     if (state.seen[post.versionKey]) continue;
-    const c = classifyPost(post.text);
-    if (c.actionable || (ALERT_ON_HINTS && c.kind === "hint")) {
-      if (await deliver(post, c, state)) notifiedCount++;
+
+    const reset = classifyPost(post.text);
+    if (reset.actionable || (ALERT_ON_HINTS && reset.kind === "hint")) {
+      if (await deliverReset(post, reset, state)) notifiedCount++;
+    } else if (DISCOVER_PROJECTS) {
+      const lead = classifyProjectLead(post.text);
+      if (lead.actionable && await deliverProject(post, lead, state)) {
+        notifiedCount++;
+      }
     }
+
     state.seen[post.versionKey] = new Date().toISOString();
   }
 
   const keys = Object.keys(state.seen);
   if (keys.length > 2000) {
-    for (const key of keys.slice(0, keys.length - 1500)) delete state.seen[key];
+    for (const key of keys.slice(0, keys.length - 1500)) {
+      delete state.seen[key];
+    }
   }
 
   saveState(state);
