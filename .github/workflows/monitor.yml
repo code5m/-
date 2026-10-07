@@ -39,6 +39,7 @@ jobs:
           BOOTSTRAP_NOTIFY_LATEST: "true"
           BOOTSTRAP_MAX_AGE_HOURS: "24"
           ALERT_ON_HINTS: "false"
+          DISCOVER_PROJECTS: "true"
         run: npm run monitor
 
       - name: Persist deduplication state
