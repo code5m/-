@@ -8,6 +8,12 @@ test("completed Codex reset is actionable", () => {
   assert.equal(r.actionable, true);
 });
 
+test("authoritative terse processed reset is actionable", () => {
+  const r = classifyPost("the reset has been processed. Enjoy!");
+  assert.equal(r.kind, "completed");
+  assert.equal(r.actionable, true);
+});
+
 test("scheduled reset with concrete time is actionable", () => {
   const r = classifyPost("Codex limits reset tomorrow 10am PT");
   assert.equal(r.kind, "scheduled");
