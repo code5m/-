@@ -1,0 +1,14 @@
+{
+  "name": "tibo-reset-wechat",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Monitor @thsottiaux reset signals and notify via WeChat in China Standard Time.",
+  "scripts": {
+    "monitor": "node src/monitor.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
