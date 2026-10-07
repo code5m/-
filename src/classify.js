@@ -6,6 +6,10 @@ const VAGUE_RE = /\b(soon|maybe|hopefully|thinking|need to|trying|working on it)
 const ACTIONABLE_TIME_RE = /\b(today|tomorrow|tonight|monday|tuesday|wednesday|thursday|friday|saturday|sunday|\d{1,2}(?::\d{2})?\s*(?:am|pm)|in\s+\d+\s+(?:minute|minutes|hour|hours|day|days)|pst|pdt|pt|utc|gmt)\b/i;
 const AUTHORITATIVE_COMPLETED_RE = /\b(?:the\s+)?reset\s+has\s+been\s+(?:processed|completed)|\breset\s+processed\b/i;
 
+const PROJECT_SIGNAL_RE = /\b(github|open\s*source|repo(?:sitory)?|project|tool|sdk|api|builder|agent|plugin|mcp|framework|library|launch(?:ed)?|ship(?:ped)?|released?)\b/i;
+const PROJECT_QUALITY_RE = /\b(good|great|useful|interesting|impressive|remarkable|worth|recommend|favorite|love|cool|powerful)\b/i;
+const PROJECT_URL_RE = /https?:\/\/\S+|github\.com\/\S+/i;
+
 export function classifyPost(text = "") {
   const normalized = String(text).replace(/\s+/g, " ").trim();
   const quota = QUOTA_RE.test(normalized);
@@ -38,4 +42,23 @@ export function classifyPost(text = "") {
   }
 
   return { kind, actionable, vagueOnly, normalized };
+}
+
+export function classifyProjectLead(text = "") {
+  const normalized = String(text).replace(/\s+/g, " ").trim();
+  const hasSignal = PROJECT_SIGNAL_RE.test(normalized);
+  const hasQuality = PROJECT_QUALITY_RE.test(normalized);
+  const hasUrl = PROJECT_URL_RE.test(normalized);
+  const score = Number(hasSignal) + Number(hasQuality) + Number(hasUrl);
+
+  return {
+    actionable: score >= 2,
+    score,
+    normalized,
+    reason: [
+      hasSignal && "project-signal",
+      hasQuality && "quality-signal",
+      hasUrl && "link"
+    ].filter(Boolean)
+  };
 }
