@@ -20,12 +20,15 @@
   - Server酱
   - WxPusher
 - Token 只放 GitHub Actions Secrets，不写进仓库
+- 同时发现 Tibo 分享的高信号项目/工具线索：只有出现 GitHub/开源/项目/工具/Agent/API 等信号，并伴随链接或明显推荐语气时才提醒，避免普通闲聊轰炸
 
 ## 设计原则
 
 本项目不是简单关键词匹配。只有“与 Codex / ChatGPT Work 用量有关”且“已经重置、明确计划重置或 banked reset”时才触发。
 
 如果 Tibo 只说 “soon”“maybe”“I need to come up with something” 一类模糊内容，默认不通知，避免误报。
+
+项目发现同样采用低噪音策略：单独一条“项目/工具”关键词不会触发，至少需要两个高信号（例如 GitHub 链接 + open source，或 tool + great）。Reset 通知优先级高于项目发现，同一条帖子不会因为两个规则同时重复提醒。
 
 ## 数据源
 
@@ -106,6 +109,30 @@ Tibo：Global reset landing tomorrow 10am PST...
 - `BOOTSTRAP_NOTIFY_LATEST=false`：首次完全不提醒历史消息
 - `BOOTSTRAP_MAX_AGE_HOURS=24`：首次允许提醒的最大消息年龄
 - `ALERT_ON_HINTS=true`：连模糊 reset 线索也通知（默认 false）
+- `DISCOVER_PROJECTS=false`：关闭 Tibo 项目/工具线索发现（默认 true）
+
+## 项目/工具线索提醒
+
+当 Tibo 明确分享或推荐值得看的开源项目、GitHub 仓库、Agent、SDK、API、框架或工具时，会发送独立微信通知：
+
+```text
+📌 Tibo：值得看的项目线索
+
+Tibo 发了一条值得看的项目/工具线索：
+【原帖内容】
+
+发现时间（北京时间）：2026-10-07 18:30
+信号：project-signal, quality-signal, link
+原帖：https://x.com/thsottiaux/status/...
+```
+
+这部分不会把所有 Tibo 动态都推给你，只保留高信号线索。
+
+## 当前部署状态
+
+代码、5 分钟 GitHub Actions 调度、北京时间转换、去重、Server酱/WxPusher 通知适配器、Reset 分类和项目发现均已进入 `main`。
+
+真正向你的微信发送消息还需要至少配置一个私密通知凭据：`SERVERCHAN_SENDKEY`，或者 `WXPUSHER_APP_TOKEN` + `WXPUSHER_UIDS`。GitHub 连接器出于安全原因不能读取或写入 Actions Secrets，所以这一步不能通过当前连接自动代填，也不应把密钥直接提交进仓库。
 
 ## 手动运行
 
