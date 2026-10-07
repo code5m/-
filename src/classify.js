@@ -1,6 +1,6 @@
 const QUOTA_RE = /\b(codex|chatgpt\s*work|usage|quota|limit|allowance|cap|5\s*hour|weekly|banked|global\s+reset)\b/i;
 const RESET_RE = /\b(reset|resets|resetting|processed|propagat(?:e|ed|ing)|restored|refill(?:ed)?|refresh(?:ed)?)\b/i;
-const COMPLETED_RE = /\b(reset (?:has been |is )?(?:processed|complete|completed|done)|limits? (?:have been )?reset|propagat(?:ed|ing)|restored|refilled)\b/i;
+const COMPLETED_RE = /\b(reset (?:has been |is )?(?:processed|complete|completed|done)|limits? have been reset|has been propagated|have been restored|have been refilled|restored|refilled)\b/i;
 const BANKED_RE = /\bbanked\s+reset|reset\s+bank|banked\b/i;
 const VAGUE_RE = /\b(soon|maybe|hopefully|thinking|need to|trying|working on it)\b/i;
 const ACTIONABLE_TIME_RE = /\b(today|tomorrow|tonight|monday|tuesday|wednesday|thursday|friday|saturday|sunday|\d{1,2}(?::\d{2})?\s*(?:am|pm)|in\s+\d+\s+(?:minute|minutes|hour|hours|day|days)|pst|pdt|pt|utc|gmt)\b/i;
