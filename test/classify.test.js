@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { classifyPost } from "../src/classify.js";
+import { classifyPost, classifyProjectLead } from "../src/classify.js";
 
 test("completed Codex reset is actionable", () => {
   const r = classifyPost("Codex weekly limit reset has been processed. Enjoy!");
@@ -29,4 +29,15 @@ test("vague reset hint stays non-actionable", () => {
 test("unrelated reset is ignored", () => {
   const r = classifyPost("I reset my laptop today");
   assert.equal(r.kind, "ignore");
+});
+
+test("high-signal project link is discoverable", () => {
+  const r = classifyProjectLead("This is a great open source agent tool: https://github.com/acme/demo");
+  assert.equal(r.actionable, true);
+  assert.ok(r.score >= 2);
+});
+
+test("generic chatter does not trigger project discovery", () => {
+  const r = classifyProjectLead("nice weather today");
+  assert.equal(r.actionable, false);
 });
